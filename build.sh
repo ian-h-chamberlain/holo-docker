@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eux
 
 LOOP=$(losetup --find --partscan --show ./steamos_image/disk.img)
 mkdir -p ./steamos
@@ -10,6 +10,14 @@ unmountimg() {
 }
 trap unmountimg ERR
 
-docker build -t ghcr.io/steamdeckhomebrew/holo-base:latest .
+PROGRESS_ARG=
+if [[ -n "$CI" ]]; then
+    PROGRESS_ARG=--progress=plain
+fi
+
+docker build $PROGRESS_ARG \
+    --build-arg=REPO="${REPO:=rel}" \
+    -t "ghcr.io/ian-h-chamberlain/holo-base:${TAG:=latest}"  \
+    .
 
 unmountimg

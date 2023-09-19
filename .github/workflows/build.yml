@@ -3,59 +3,106 @@ name: Build Holo Docker images
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    # branches:
+    #   - main
 
 jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # From what I can tell, this is the mapping used by the Steam UI,
+          # but it's a little unclear because Beta is downloading 3.5.0 even though
+          # the Steam UI has 3.4 in beta. Maybe it's because there is no "beta"
+          # version right now? The "release" version has steamdeck-rc as its variant...
+          - channel: release
+            variant: steamdeck
+            repo: rel
+          - channel: beta
+            variant: steamdeck-beta
+            repo: beta # or 3.5 ?
+
+          # - channel: preview
+          #   variant: steamdeck-bc
+          #   repo: ???
+
+          # TODO: what the heck is staging, rc? Also what is the difference between
+          # snapshot and numbered versions? Should we support all those different types, or what?
+
+    continue-on-error: ${{ matrix.channel != 'release' }}
+
     steps:
     - name: Checkout
       uses: actions/checkout@v3
       with:
         fetch-depth: 0
-    
+
+    - name: Clean up cached docker images for more disk space
+      run: docker rmi $(docker image ls -qa)
+
     - name: Login to GitHub Container Registry
-      run: |
-        echo $GITHUB_TOKEN | docker login ghcr.io -u SteamDeckHomebrew --password-stdin
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Download SteamOS
       run: ./download.sh
+      env:
+        VARIANT: ${{ matrix.variant }}
 
     - name: Build base image
-      run: sudo ./build.sh
+      run: sudo -E ./build.sh
+      env:
+        REPO: ${{ matrix.repo }}
+        TAG: ${{ matrix.channel }}
+
+    - name: Get built image version
+      id: version
+      run: |
+        docker run ghcr.io/ian-h-chamberlain/holo-base:${{ matrix.channel }} \
+          cat /etc/os-release >> $GITHUB_OUTPUT
 
     - name: Cleanup SteamOS image
       run: rm -rf ./steamos_image ./steamos
 
-    - name: Build Rust toolchain image
-      run: |
-        cd languages
-        docker build -t ghcr.io/steamdeckhomebrew/holo-toolchain-rust:latest -f ./rust.dockerfile .
+        # - name: Build Rust toolchain image
+        #   run: |
+        #     cd languages
+        #     docker build -t ghcr.io/ian-h-chamberlain/holo-toolchain-rust:latest -f ./rust.dockerfile .
 
-    - name: Build Go toolchain image
-      run: |
-        cd languages
-        docker build -t ghcr.io/steamdeckhomebrew/holo-toolchain-go:latest -f ./go.dockerfile .
+        # - name: Build Go toolchain image
+        #   run: |
+        #     cd languages
+        #     docker build -t ghcr.io/ian-h-chamberlain/holo-toolchain-go:latest -f ./go.dockerfile .
 
     - name: Wait for other runs to complete
       uses: softprops/turnstyle@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Push Base image
-      run: docker push ghcr.io/steamdeckhomebrew/holo-base:latest
-
-    - name: Push Rust toolchain image
-      run: docker push ghcr.io/steamdeckhomebrew/holo-toolchain-rust:latest
-
-    - name: Push Go toolchain image
-      run: docker push ghcr.io/steamdeckhomebrew/holo-toolchain-go:latest
-
-    - name: Log out of GitHub Container Registry
+    - name: Tag latest Base image
+      if: matrix.channel == 'release'
       run: |
-        docker logout ghcr.io
+        docker tag ghcr.io/ian-h-chamberlain/holo-base:${{ matrix.channel }} \
+          ghcr.io/ian-h-chamberlain/holo-base:latest
+
+    - name: Tag + push Base image
+      run: |
+        docker tag ghcr.io/ian-h-chamberlain/holo-base:${{ matrix.channel }} \
+          ghcr.io/ian-h-chamberlain/holo-base:${{ steps.version.outputs.VERSION_ID }}
+
+        docker tag ghcr.io/ian-h-chamberlain/holo-base:${{ matrix.channel }} \
+          ghcr.io/ian-h-chamberlain/holo-base:${{ steps.version.outputs.BUILD_ID }}
+
+        docker push --all-tags ghcr.io/ian-h-chamberlain/holo-base
+
+    # - name: Push Rust toolchain image
+    #   run: docker push ghcr.io/ian-h-chamberlain/holo-toolchain-rust:latest
+
+    # - name: Push Go toolchain image
+    #   run: docker push ghcr.io/ian-h-chamberlain/holo-toolchain-go:latest

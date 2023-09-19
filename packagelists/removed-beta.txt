@@ -1,0 +1,38 @@
+# All of these packages either caused conflicts, or are equivalent to something
+# in removed-rel.txt. It's not clear if all of them should actually be removed
+# but let's try for now.
+atomupd-daemon-git
+casync
+clinfo
+desync
+firewalld
+flatpak-kcm
+fuse-overlayfs
+gperftools
+holo-nix-offload
+jupiter-firewall
+jupiter-steamos-log-submitter
+kdumpst
+kirigami-addons
+lib32-gamescope
+lib32-libpipewire
+lib32-libxcrypt-compat
+libcec
+libdecor
+libjxl
+libopenmpt
+libwbclient
+linux-neptune-61
+mpg123
+networkmanager-openvpn
+plasma-remotecontrollers
+plasma-welcome
+portaudio
+powerbuttond
+python-anyio
+python-httpcore
+python-httpx
+steamos-kdumpst-layer
+steamos-log-submitter
+steamos-systemreport
+tmux
