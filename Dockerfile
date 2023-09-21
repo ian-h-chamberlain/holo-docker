@@ -505,6 +505,7 @@ RUN pacman -R --noconfirm \
     mdadm \
     media-player-info \
     mesa \
+    mesa-unstable \
     mesa-utils \
     mesa-vdpau \
     milou \
