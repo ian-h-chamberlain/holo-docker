@@ -1,3 +1,3 @@
-FROM ghcr.io/steamdeckhomebrew/holo-base:latest
+FROM ghcr.io/ian-h-chamberlain/holo-base:latest
 
 RUN pacman -Sy --noconfirm rustup && rustup install stable

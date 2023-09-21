@@ -10,6 +10,8 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
 
     steps:
     - name: Checkout
@@ -19,7 +21,7 @@ jobs:
 
     - name: Login to GitHub Container Registry
       run: |
-        echo $GITHUB_TOKEN | docker login ghcr.io -u SteamDeckHomebrew --password-stdin
+        echo $GITHUB_TOKEN | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -32,7 +34,7 @@ jobs:
     - name: Get base image version info
       id: version
       run: |
-        docker run ghcr.io/steamdeckhomebrew/holo-base:latest \
+        docker run ghcr.io/ian-h-chamberlain/holo-base:latest \
             cat /etc/os-release >> $GITHUB_OUTPUT
 
     - name: Cleanup SteamOS image
@@ -41,12 +43,12 @@ jobs:
     - name: Build Rust toolchain image
       run: |
         cd languages
-        docker build -t ghcr.io/steamdeckhomebrew/holo-toolchain-rust:latest -f ./rust.dockerfile .
+        docker build -t ghcr.io/ian-h-chamberlain/holo-toolchain-rust:latest -f ./rust.dockerfile .
 
     - name: Build Go toolchain image
       run: |
         cd languages
-        docker build -t ghcr.io/steamdeckhomebrew/holo-toolchain-go:latest -f ./go.dockerfile .
+        docker build -t ghcr.io/ian-h-chamberlain/holo-toolchain-go:latest -f ./go.dockerfile .
 
     - name: Wait for other runs to complete
       uses: softprops/turnstyle@v1
@@ -62,13 +64,13 @@ jobs:
         for IMAGE in \
             base toolchain-rust toolchain-go
         do
-            IMG_ID=$(docker images -q ghcr.io/steamdeckhomebrew/holo-$IMAGE:latest)
+            IMG_ID=$(docker images -q ghcr.io/ian-h-chamberlain/holo-$IMAGE:latest)
 
-            docker tag $IMG_ID ghcr.io/steamdeckhomebrew/holo-$IMAGE:$VERSION_FULL
-            docker tag $IMG_ID ghcr.io/steamdeckhomebrew/holo-$IMAGE:$MINOR_VERSION
-            docker tag $IMG_ID ghcr.io/steamdeckhomebrew/holo-$IMAGE:build-$BUILD_ID
+            docker tag $IMG_ID ghcr.io/ian-h-chamberlain/holo-$IMAGE:$VERSION_FULL
+            docker tag $IMG_ID ghcr.io/ian-h-chamberlain/holo-$IMAGE:$VERSION_MINOR
+            docker tag $IMG_ID ghcr.io/ian-h-chamberlain/holo-$IMAGE:build-$BUILD_ID
 
-            docker push --all-tags ghcr.io/steamdeckhomebrew/holo-$IMAGE
+            docker push --all-tags ghcr.io/ian-h-chamberlain/holo-$IMAGE
         done
 
     - name: Log out of GitHub Container Registry

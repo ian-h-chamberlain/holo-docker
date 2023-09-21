@@ -10,6 +10,6 @@ unmountimg() {
 }
 trap unmountimg ERR
 
-docker build -t ghcr.io/steamdeckhomebrew/holo-base:latest .
+docker build -t ghcr.io/ian-h-chamberlain/holo-base:latest .
 
 unmountimg
