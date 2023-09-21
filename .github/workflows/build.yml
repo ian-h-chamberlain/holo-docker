@@ -10,13 +10,13 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout
       uses: actions/checkout@v3
       with:
         fetch-depth: 0
-    
+
     - name: Login to GitHub Container Registry
       run: |
         echo $GITHUB_TOKEN | docker login ghcr.io -u SteamDeckHomebrew --password-stdin
@@ -28,6 +28,12 @@ jobs:
 
     - name: Build base image
       run: sudo ./build.sh
+
+    - name: Get base image version info
+      id: version
+      run: |
+        docker run ghcr.io/steamdeckhomebrew/holo-base:latest \
+            cat /etc/os-release >> $GITHUB_OUTPUT
 
     - name: Cleanup SteamOS image
       run: rm -rf ./steamos_image ./steamos
@@ -47,14 +53,23 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Push Base image
-      run: docker push ghcr.io/steamdeckhomebrew/holo-base:latest
+    - name: Tag and push images
+      run: |
+        VERSION_FULL=${{ steps.version.outputs.VERSION_ID }}
+        VERSION_MINOR=$(echo $VERSION_FULL | cut -d. -f1,2)
+        BUILD_ID=${{ steps.version.outputs.BUILD_ID }}
 
-    - name: Push Rust toolchain image
-      run: docker push ghcr.io/steamdeckhomebrew/holo-toolchain-rust:latest
+        for IMAGE in \
+            base toolchain-rust toolchain-go
+        do
+            IMG_ID=$(docker images -q ghcr.io/steamdeckhomebrew/holo-$IMAGE:latest)
 
-    - name: Push Go toolchain image
-      run: docker push ghcr.io/steamdeckhomebrew/holo-toolchain-go:latest
+            docker tag $IMG_ID ghcr.io/steamdeckhomebrew/holo-$IMAGE:$VERSION_FULL
+            docker tag $IMG_ID ghcr.io/steamdeckhomebrew/holo-$IMAGE:$MINOR_VERSION
+            docker tag $IMG_ID ghcr.io/steamdeckhomebrew/holo-$IMAGE:build-$BUILD_ID
+
+            docker push --all-tags ghcr.io/steamdeckhomebrew/holo-$IMAGE
+        done
 
     - name: Log out of GitHub Container Registry
       run: |
